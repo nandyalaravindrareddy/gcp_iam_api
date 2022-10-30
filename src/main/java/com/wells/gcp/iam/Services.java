@@ -49,6 +49,23 @@ public class Services {
         return serviceAccountEmail;
     }
 
+    public boolean deleteServiceAccount(String projectId, String serviceAccountEmail) {
+        boolean isServiceAccountDeleted = false;
+        try {
+            iamService
+                    .projects()
+                    .serviceAccounts()
+                    .delete("projects/-/serviceAccounts/" + serviceAccountEmail)
+                    .execute();
+
+            System.out.println("Deleted service account: " + serviceAccountEmail);
+            isServiceAccountDeleted = true;
+        } catch (IOException e) {
+            System.out.println("Unable to delete service account: \n" + e.toString());
+        }
+        return isServiceAccountDeleted;
+    }
+
     public boolean addBinding(Policy policy, String role, List<String> members,String projectId,CloudResourceManager cloudResourceManager) {
         boolean isBindingAdded = false;
         try{
@@ -78,28 +95,34 @@ public class Services {
                 System.out.println("Member " + member + " added to role " + role);
                 setPolicy(cloudResourceManager,projectId , policy);
                 isMemberAdded = true;
-                return isMemberAdded;
+                break;
             }
         }
         System.out.println("Role not found in policy; member not added");
         return isMemberAdded;
     }
 
-    public boolean deleteServiceAccount(String projectId, String serviceAccountEmail) {
-        boolean isServiceAccountDeleted = false;
-        try {
-            iamService
-                    .projects()
-                    .serviceAccounts()
-                    .delete("projects/-/serviceAccounts/" + serviceAccountEmail)
-                    .execute();
-
-            System.out.println("Deleted service account: " + serviceAccountEmail);
-            isServiceAccountDeleted = true;
-        } catch (IOException e) {
-            System.out.println("Unable to delete service account: \n" + e.toString());
+    public static boolean removeMember(CloudResourceManager cloudResourceManager,Policy policy,String role,String member,String projectId) {
+        boolean isMemberAdded = false;
+        List<Binding> bindings = policy.getBindings();
+        Binding binding = null;
+        for (Binding b : bindings) {
+            if (b.getRole().equals(role)) {
+                binding = b;
+            }
         }
-        return isServiceAccountDeleted;
+        if (binding.getMembers().contains(member)) {
+            binding.getMembers().remove(member);
+            System.out.println("Member " + member + " removed from " + role);
+            if (binding.getMembers().isEmpty()) {
+                policy.getBindings().remove(binding);
+            }
+            setPolicy(cloudResourceManager,projectId , policy);
+            isMemberAdded = true;
+        }
+
+        System.out.println("Role not found in policy; member not removed");
+        return isMemberAdded;
     }
 
 
